@@ -310,7 +310,6 @@ function analyzeLabel(base64Image) {
   showLoading("Reading label with AI...");
   document.getElementById("scanOverlay").classList.add("active");
 
-  // Compress image before sending to avoid URL length limits
   var canvas = document.createElement("canvas");
   var img = new Image();
   img.onload = function() {
@@ -321,16 +320,31 @@ function analyzeLabel(base64Image) {
     canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
     var compressed = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
 
-    jsonp(SCRIPT_URL + "?action=analyzeLabel&image=" + encodeURIComponent(compressed),
-    function(err, data) {
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "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",
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: compressed }},
+            { type: "text", text: "Extract from this shipping label and respond ONLY with JSON:\n{\"recipient_name\": \"full name of recipient only, no ship name\", \"tracking_number\": \"tracking number\", \"ship_hint\": \"NCL Dawn, NCL Star, or MS Insignia if visible, else empty string\"}" }
+          ]
+        }]
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
       document.getElementById("scanOverlay").classList.remove("active");
       hideStatus();
-      if (err || !data || !data.success) {
-        showError("AI reading failed. Fill in details manually.");
-        showResultCard("", "", "", 1);
-        return;
-      }
-      var content = data.result.content[0].text.trim();
+      var content = data.content[0].text.trim();
       var parsed;
       try { parsed = JSON.parse(content); }
       catch(e) {
@@ -338,12 +352,15 @@ function analyzeLabel(base64Image) {
         parsed = match ? JSON.parse(match[0]) : {};
       }
       populateFields(parsed);
+    })
+    .catch(function(err) {
+      document.getElementById("scanOverlay").classList.remove("active");
+      showError("AI reading failed. Fill in details manually.");
+      showResultCard("", "", "", 1);
     });
   };
   img.src = "data:image/jpeg;base64," + base64Image;
-}
-
-// ── POPULATE FIELDS ──────────────────────────────────────────
+}// ── POPULATE FIELDS ──────────────────────────────────────────
 function populateFields(parsed) {
   var name     = (parsed.recipient_name || "").replace(/NCL Dawn|NCL Star|MS Insignia/gi, "").trim();
   var tracking = parsed.tracking_number || "";
