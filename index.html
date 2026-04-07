@@ -292,8 +292,8 @@ function analyzeLabel(base64Image) {
   showLoading("Reading label with AI...");
   document.getElementById("scanOverlay").classList.add("active");
 
-  fetch(SCRIPT_URL, {
-    method: "POST",
+ fetch("https://corsproxy.io/?" + encodeURIComponent(SCRIPT_URL), {
+  method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "analyzeLabel", image: base64Image })
   })
@@ -371,8 +371,8 @@ function logPackage() {
   showLoading("Logging package & sending invoice...");
   document.getElementById("btnLog").disabled = true;
 
-  fetch(SCRIPT_URL, {
-    method: "POST",
+  fetch("https://corsproxy.io/?" + encodeURIComponent(SCRIPT_URL), {
+  method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "logPackage", name: name, tracking: tracking, ship: ship, count: count })
   })
