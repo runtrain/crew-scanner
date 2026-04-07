@@ -320,14 +320,11 @@ function analyzeLabel(base64Image) {
     canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
     var compressed = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
 
-    fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": "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",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
+    fetch("https://crew-packages-proxy.crewpackagestpa.workers.dev", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 300,
