@@ -219,7 +219,7 @@
 
 <script>
 // ── CONFIG — FILL THESE IN ───────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxJ2BfSZ0FWdPKeJR6QERmCdThUmGVd8-LdYccQ837W2K3kma9mC9TmR9KsLszCOPL5Q/exec"; // ← paste your Web App URL here
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwSXTiSlFkp-FdBaDXjdQGiK3TC_OWXvoDHErQ-h8ZrOc2UcH-B2_09S6QICp4tV3U3Bw/exec"; // ← paste your Web App URL here
 
 // ── STATE ────────────────────────────────────────────────────
 var stream = null;
@@ -292,11 +292,7 @@ function analyzeLabel(base64Image) {
   showLoading("Reading label with AI...");
   document.getElementById("scanOverlay").classList.add("active");
 
- fetch("https://corsproxy.io/?" + encodeURIComponent(SCRIPT_URL), {
-  method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "analyzeLabel", image: base64Image })
-  })
+  fetch(SCRIPT_URL + "?action=analyzeLabel&image=" + encodeURIComponent(base64Image))
   .then(function(r) { return r.json(); })
   .then(function(data) {
     document.getElementById("scanOverlay").classList.remove("active");
@@ -371,11 +367,7 @@ function logPackage() {
   showLoading("Logging package & sending invoice...");
   document.getElementById("btnLog").disabled = true;
 
-  fetch("https://corsproxy.io/?" + encodeURIComponent(SCRIPT_URL), {
-  method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "logPackage", name: name, tracking: tracking, ship: ship, count: count })
-  })
+  fetch(SCRIPT_URL + "?action=logPackage&name=" + encodeURIComponent(name) + "&tracking=" + encodeURIComponent(tracking) + "&ship=" + encodeURIComponent(ship) + "&count=" + count)
   .then(function(r) { return r.json(); })
   .then(function(result) {
     if (result.success) {
