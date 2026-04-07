@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Crew Packages TPA — Scanner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --navy:  #0A1628;
+    --gold:  #C9A84C;
+    --gold2: #E8C96A;
+    --light: #F4F6FA;
+    --gray:  #8896AA;
+    --red:   #C0392B;
+    --green: #1A7A4A;
+    --white: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+  }
+
+  .header {
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+  .header-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; color: var(--gold); }
+  .header-sub   { font-size: 10px; color: var(--gray); margin-top: 2px; }
+
+  .container { padding: 20px; max-width: 480px; margin: 0 auto; }
+
+  .camera-zone {
+    position: relative;
+    background: #050D1A;
+    border: 2px solid rgba(201,168,76,0.3);
+    border-radius: 16px;
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  #video { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #preview-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #canvas { display: none; }
+
+  .camera-placeholder { text-align: center; padding: 20px; }
+  .camera-placeholder .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+  .camera-placeholder p { font-size: 13px; color: var(--gray); }
+
+  .scan-overlay {
+    position: absolute; inset: 0;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(10,22,40,0.7);
+  }
+  .scan-overlay.active { display: flex; }
+  .scan-line {
+    position: absolute; left: 10%; width: 80%; height: 2px;
+    background: var(--gold); box-shadow: 0 0 12px var(--gold);
+    animation: scanMove 1.8s ease-in-out infinite;
+  }
+  @keyframes scanMove { 0% { top:15%; } 50% { top:85%; } 100% { top:15%; } }
+  .scan-corners { position: absolute; inset: 12%; border: 2px solid var(--gold); border-radius: 8px; opacity: 0.6; }
+  .scan-text { position: absolute; bottom: 16px; font-size: 12px; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; }
+
+  .btn {
+    width: 100%; padding: 16px; border: none; border-radius: 12px;
+    font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.5px;
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary  { background: var(--gold); color: var(--navy); }
+  .btn-secondary { background: rgba(201,168,76,0.1); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+  .btn-success  { background: var(--green); color: var(--white); }
+  .btn-danger   { background: rgba(192,57,43,0.15); color: #e74c3c; border: 1px solid rgba(192,57,43,0.3); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .result-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px; display: none;
+  }
+  .result-card.active { display: block; }
+  .result-label { font-size: 10px; color: var(--gray); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .result-field { margin-bottom: 16px; }
+  .result-field:last-child { margin-bottom: 0; }
+  .result-input {
+    width: 100%; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 12px 14px; color: var(--white);
+    font-family: 'DM Mono', monospace; font-size: 14px; outline: none; transition: border-color 0.2s;
+  }
+  .result-input:focus { border-color: var(--gold); }
+  select.result-input option { background: var(--navy); color: var(--white); }
+
+  .status {
+    padding: 14px 16px; border-radius: 10px; font-size: 13px;
+    margin-bottom: 14px; display: none; align-items: center; gap: 10px;
+  }
+  .status.active { display: flex; }
+  .status.loading { background: rgba(201,168,76,0.1); color: var(--gold); border: 1px solid rgba(201,168,76,0.2); }
+  .status.success { background: rgba(26,122,74,0.15); color: #2ecc71; border: 1px solid rgba(26,122,74,0.3); }
+  .status.error   { background: rgba(192,57,43,0.15); color: #e74c3c; border: 1px solid rgba(192,57,43,0.3); }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(201,168,76,0.3); border-top-color: var(--gold);
+    border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .price-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 6px; padding: 4px 10px; font-size: 13px; color: var(--gold); margin-top: 8px;
+  }
+
+  .divider {
+    text-align: center; color: var(--gray); font-size: 11px;
+    letter-spacing: 1px; margin: 4px 0 14px; position: relative;
+  }
+  .divider::before, .divider::after {
+    content: ''; position: absolute; top: 50%; width: 38%;
+    height: 1px; background: rgba(255,255,255,0.08);
+  }
+  .divider::before { left: 0; } .divider::after { right: 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">CREW PACKAGES TPA</div>
+    <div class="header-sub">Label Scanner &middot; 4405 N Hesperides St</div>
+  </div>
+  <div style="font-size:22px;opacity:0.7">&#9875;</div>
+</div>
+
+<div class="container">
+
+  <div class="camera-zone" id="cameraZone">
+    <video id="video" autoplay playsinline></video>
+    <img id="preview-img" alt="Captured label">
+    <canvas id="canvas"></canvas>
+    <div class="camera-placeholder" id="placeholder">
+      <div class="icon">&#128230;</div>
+      <p>Tap "Open Camera" to scan a shipping label</p>
+    </div>
+    <div class="scan-overlay" id="scanOverlay">
+      <div class="scan-corners"></div>
+      <div class="scan-line"></div>
+      <div class="scan-text">Reading label...</div>
+    </div>
+  </div>
+
+  <div class="status loading" id="statusLoading">
+    <div class="spinner"></div>
+    <span id="statusText">Reading label with AI...</span>
+  </div>
+  <div class="status success" id="statusSuccess">
+    <span>&#10003;</span>
+    <span id="statusSuccessText">Package logged successfully!</span>
+  </div>
+  <div class="status error" id="statusError">
+    <span>&#10007;</span>
+    <span id="statusErrorText">Something went wrong.</span>
+  </div>
+
+  <button class="btn btn-primary" id="btnCamera" onclick="openCamera()">&#128247; Open Camera</button>
+  <button class="btn btn-secondary" id="btnCapture" onclick="capturePhoto()" style="display:none">&#9889; Capture Label</button>
+  <button class="btn btn-secondary" id="btnRetake" onclick="retake()" style="display:none">&#8617; Retake Photo</button>
+
+  <div class="divider">OR UPLOAD IMAGE</div>
+  <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFileUpload(event)">
+  <button class="btn btn-secondary" id="btnUpload" onclick="document.getElementById('fileInput').click()">&#128444; Upload Label Photo</button>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-field">
+      <div class="result-label">Crew Full Name</div>
+      <input class="result-input" id="fieldName" type="text" placeholder="As registered in system">
+    </div>
+    <div class="result-field">
+      <div class="result-label">Tracking Number</div>
+      <input class="result-input" id="fieldTracking" type="text" placeholder="Carrier barcode">
+    </div>
+    <div class="result-field">
+      <div class="result-label">Ship</div>
+      <select class="result-input" id="fieldShip">
+        <option value="">— Select Ship —</option>
+        <option value="NCL Dawn">NCL Dawn</option>
+        <option value="NCL Star">NCL Star</option>
+        <option value="MS Insignia">MS Insignia</option>
+      </select>
+    </div>
+    <div class="result-field">
+      <div class="result-label">Package Count</div>
+      <input class="result-input" id="fieldCount" type="number" value="1" min="1">
+    </div>
+    <div class="price-badge" id="priceBadge">&#128176; Total: $10.00</div>
+  </div>
+
+  <button class="btn btn-success" id="btnLog" onclick="logPackage()" style="display:none">&#9989; Log Package &amp; Send Invoice</button>
+  <button class="btn btn-danger" id="btnCancel" onclick="resetAll()" style="display:none">Cancel</button>
+
+</div>
+
+<script>
+// ── CONFIG — FILL THESE IN ───────────────────────────────────
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPT5k_efonKRBDbZwyMUUuCplhoDrRW-34oqUKA3f9AL08WRWG_OzK2SsaagbN1qKkOw/exec"; // ← paste your Web App URL here
+
+// ── STATE ────────────────────────────────────────────────────
+var stream = null;
+var capturedImageBase64 = null;
+
+// ── CAMERA ───────────────────────────────────────────────────
+function openCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showError("Camera not available. Please use the upload button.");
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "environment", width: { ideal: 1920 } }
+  }).then(function(s) {
+    stream = s;
+    var video = document.getElementById("video");
+    video.srcObject = stream;
+    video.style.display = "block";
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("btnCamera").style.display = "none";
+    document.getElementById("btnCapture").style.display = "flex";
+  }).catch(function(err) {
+    showError("Camera access denied. Use the upload button instead.");
+  });
+}
+
+function capturePhoto() {
+  var video  = document.getElementById("video");
+  var canvas = document.getElementById("canvas");
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  capturedImageBase64 = canvas.toDataURL("image/jpeg", 0.92).split(",")[1];
+
+  var preview = document.getElementById("preview-img");
+  preview.src = "data:image/jpeg;base64," + capturedImageBase64;
+  preview.style.display = "block";
+  video.style.display = "none";
+
+  if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+
+  document.getElementById("btnCapture").style.display = "none";
+  document.getElementById("btnRetake").style.display = "flex";
+
+  analyzeLabel(capturedImageBase64);
+}
+
+function handleFileUpload(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    capturedImageBase64 = e.target.result.split(",")[1];
+    var preview = document.getElementById("preview-img");
+    preview.src = e.target.result;
+    preview.style.display = "block";
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("video").style.display = "none";
+    document.getElementById("btnCamera").style.display = "none";
+    document.getElementById("btnCapture").style.display = "none";
+    document.getElementById("btnRetake").style.display = "flex";
+    if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+    analyzeLabel(capturedImageBase64);
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── AI LABEL READING via Apps Script backend ─────────────────
+function analyzeLabel(base64Image) {
+  showLoading("Reading label with AI...");
+  document.getElementById("scanOverlay").classList.add("active");
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "analyzeLabel", image: base64Image })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    document.getElementById("scanOverlay").classList.remove("active");
+    hideStatus();
+
+    if (!data.success) {
+      showError("AI reading failed. Fill in details manually.");
+      showResultCard("", "", "", 1);
+      return;
+    }
+
+    var content = data.result.content[0].text.trim();
+    var parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch(e) {
+      var match = content.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : {};
+    }
+    populateFields(parsed);
+  })
+  .catch(function(err) {
+    document.getElementById("scanOverlay").classList.remove("active");
+    showError("Network error: " + err.message + ". Fill in details manually.");
+    showResultCard("", "", "", 1);
+  });
+}
+
+// ── POPULATE FIELDS ──────────────────────────────────────────
+function populateFields(parsed) {
+  var name     = (parsed.recipient_name || "").replace(/NCL Dawn|NCL Star|MS Insignia/gi, "").trim();
+  var tracking = parsed.tracking_number || "";
+  var ship     = "";
+
+  if (parsed.ship_hint) {
+    if (parsed.ship_hint.indexOf("Dawn")     > -1) ship = "NCL Dawn";
+    if (parsed.ship_hint.indexOf("Star")     > -1) ship = "NCL Star";
+    if (parsed.ship_hint.indexOf("Insignia") > -1) ship = "MS Insignia";
+  }
+
+  showResultCard(name, tracking, ship, 1);
+}
+
+function showResultCard(name, tracking, ship, count) {
+  document.getElementById("fieldName").value     = name;
+  document.getElementById("fieldTracking").value = tracking;
+  document.getElementById("fieldShip").value     = ship;
+  document.getElementById("fieldCount").value    = count;
+  document.getElementById("resultCard").classList.add("active");
+  document.getElementById("btnLog").style.display    = "flex";
+  document.getElementById("btnCancel").style.display = "flex";
+  updatePrice();
+  document.getElementById("fieldCount").addEventListener("input", updatePrice);
+}
+
+function updatePrice() {
+  var count = parseInt(document.getElementById("fieldCount").value) || 1;
+  document.getElementById("priceBadge").textContent = "Total: $" + (count * 10).toFixed(2);
+}
+
+// ── LOG PACKAGE ───────────────────────────────────────────────
+function logPackage() {
+  var name     = document.getElementById("fieldName").value.trim();
+  var tracking = document.getElementById("fieldTracking").value.trim();
+  var ship     = document.getElementById("fieldShip").value;
+  var count    = parseInt(document.getElementById("fieldCount").value) || 1;
+
+  if (!name)     { showError("Please enter the crew member's name."); return; }
+  if (!tracking) { showError("Please enter the tracking number."); return; }
+  if (!ship)     { showError("Please select a ship."); return; }
+
+  showLoading("Logging package & sending invoice...");
+  document.getElementById("btnLog").disabled = true;
+
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "logPackage", name: name, tracking: tracking, ship: ship, count: count })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(result) {
+    if (result.success) {
+      hideStatus();
+      showSuccess("Package logged for " + name + "! Invoice sent to " + result.email);
+      document.getElementById("btnLog").style.display    = "none";
+      document.getElementById("btnCancel").style.display = "none";
+      setTimeout(function() { resetAll(); }, 4000);
+    } else {
+      showError(result.message || "Failed to log package.");
+      document.getElementById("btnLog").disabled = false;
+    }
+  })
+  .catch(function(err) {
+    showError("Network error: " + err.message);
+    document.getElementById("btnLog").disabled = false;
+  });
+}
+
+// ── RESET ─────────────────────────────────────────────────────
+function retake() {
+  capturedImageBase64 = null;
+  document.getElementById("preview-img").style.display = "none";
+  document.getElementById("preview-img").src = "";
+  document.getElementById("resultCard").classList.remove("active");
+  document.getElementById("btnLog").style.display    = "none";
+  document.getElementById("btnCancel").style.display = "none";
+  document.getElementById("btnRetake").style.display = "none";
+  document.getElementById("btnCamera").style.display = "flex";
+  document.getElementById("placeholder").style.display = "block";
+  hideStatus();
+}
+
+function resetAll() {
+  retake();
+  document.getElementById("fileInput").value = "";
+}
+
+// ── STATUS ────────────────────────────────────────────────────
+function showLoading(msg) {
+  hideStatus();
+  document.getElementById("statusText").textContent = msg;
+  document.getElementById("statusLoading").classList.add("active");
+}
+function showSuccess(msg) {
+  hideStatus();
+  document.getElementById("statusSuccessText").textContent = msg;
+  document.getElementById("statusSuccess").classList.add("active");
+}
+function showError(msg) {
+  hideStatus();
+  document.getElementById("statusErrorText").textContent = msg;
+  document.getElementById("statusError").classList.add("active");
+}
+function hideStatus() {
+  document.getElementById("statusLoading").classList.remove("active");
+  document.getElementById("statusSuccess").classList.remove("active");
+  document.getElementById("statusError").classList.remove("active");
+}
+</script>
+</body>
+</html>
