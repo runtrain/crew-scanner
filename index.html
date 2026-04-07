@@ -219,7 +219,7 @@
 
 <script>
 // ── CONFIG — FILL THESE IN ───────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwSXTiSlFkp-FdBaDXjdQGiK3TC_OWXvoDHErQ-h8ZrOc2UcH-B2_09S6QICp4tV3U3Bw/exec"; // ← paste your Web App URL here
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfRh9Q5JWvnXG0I7dXK2rM2PQsf5wq9uXOWSLP8pDTZ6nPyDIEqimfKhDkJGaLbRmWgw/exec"; // ← paste your Web App URL here
 
 // ── STATE ────────────────────────────────────────────────────
 var stream = null;
@@ -287,38 +287,60 @@ function handleFileUpload(event) {
   reader.readAsDataURL(file);
 }
 
+// ── JSONP HELPER — bypasses CORS entirely ────────────────────
+function jsonp(url, callback) {
+  var cbName = "cb_" + Math.random().toString(36).substr(2, 9);
+  window[cbName] = function(data) {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(null, data);
+  };
+  var script = document.createElement("script");
+  script.src = url + "&callback=" + cbName;
+  script.onerror = function() {
+    delete window[cbName];
+    document.head.removeChild(script);
+    callback(new Error("Request failed"));
+  };
+  document.head.appendChild(script);
+}
+
 // ── AI LABEL READING via Apps Script backend ─────────────────
 function analyzeLabel(base64Image) {
   showLoading("Reading label with AI...");
   document.getElementById("scanOverlay").classList.add("active");
 
-  fetch(SCRIPT_URL + "?action=analyzeLabel&image=" + encodeURIComponent(base64Image))
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    document.getElementById("scanOverlay").classList.remove("active");
-    hideStatus();
+  // Compress image before sending to avoid URL length limits
+  var canvas = document.createElement("canvas");
+  var img = new Image();
+  img.onload = function() {
+    var maxW = 800;
+    var scale = Math.min(1, maxW / img.width);
+    canvas.width  = img.width  * scale;
+    canvas.height = img.height * scale;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    var compressed = canvas.toDataURL("image/jpeg", 0.6).split(",")[1];
 
-    if (!data.success) {
-      showError("AI reading failed. Fill in details manually.");
-      showResultCard("", "", "", 1);
-      return;
-    }
-
-    var content = data.result.content[0].text.trim();
-    var parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch(e) {
-      var match = content.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : {};
-    }
-    populateFields(parsed);
-  })
-  .catch(function(err) {
-    document.getElementById("scanOverlay").classList.remove("active");
-    showError("Network error: " + err.message + ". Fill in details manually.");
-    showResultCard("", "", "", 1);
-  });
+    jsonp(SCRIPT_URL + "?action=analyzeLabel&image=" + encodeURIComponent(compressed),
+    function(err, data) {
+      document.getElementById("scanOverlay").classList.remove("active");
+      hideStatus();
+      if (err || !data || !data.success) {
+        showError("AI reading failed. Fill in details manually.");
+        showResultCard("", "", "", 1);
+        return;
+      }
+      var content = data.result.content[0].text.trim();
+      var parsed;
+      try { parsed = JSON.parse(content); }
+      catch(e) {
+        var match = content.match(/\{[\s\S]*\}/);
+        parsed = match ? JSON.parse(match[0]) : {};
+      }
+      populateFields(parsed);
+    });
+  };
+  img.src = "data:image/jpeg;base64," + base64Image;
 }
 
 // ── POPULATE FIELDS ──────────────────────────────────────────
@@ -367,9 +389,13 @@ function logPackage() {
   showLoading("Logging package & sending invoice...");
   document.getElementById("btnLog").disabled = true;
 
-  fetch(SCRIPT_URL + "?action=logPackage&name=" + encodeURIComponent(name) + "&tracking=" + encodeURIComponent(tracking) + "&ship=" + encodeURIComponent(ship) + "&count=" + count)
-  .then(function(r) { return r.json(); })
-  .then(function(result) {
+  jsonp(SCRIPT_URL + "?action=logPackage&name=" + encodeURIComponent(name) + "&tracking=" + encodeURIComponent(tracking) + "&ship=" + encodeURIComponent(ship) + "&count=" + count,
+  function(err, result) {
+    if (err || !result) {
+      showError("Network error. Check your connection and try again.");
+      document.getElementById("btnLog").disabled = false;
+      return;
+    }
     if (result.success) {
       hideStatus();
       showSuccess("Package logged for " + name + "! Invoice sent to " + result.email);
@@ -380,10 +406,6 @@ function logPackage() {
       showError(result.message || "Failed to log package.");
       document.getElementById("btnLog").disabled = false;
     }
-  })
-  .catch(function(err) {
-    showError("Network error: " + err.message);
-    document.getElementById("btnLog").disabled = false;
   });
 }
 
