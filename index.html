@@ -403,24 +403,28 @@ function logPackage() {
   showLoading("Logging package & sending invoice...");
   document.getElementById("btnLog").disabled = true;
 
-  jsonp(SCRIPT_URL + "?action=logPackage&name=" + encodeURIComponent(name) + "&tracking=" + encodeURIComponent(tracking) + "&ship=" + encodeURIComponent(ship) + "&count=" + count,
-  function(err, result) {
-    if (err || !result) {
-      showError("Network error. Check your connection and try again.");
-      document.getElementById("btnLog").disabled = false;
-      return;
-    }
-    if (result.success) {
-      hideStatus();
-      showSuccess("Package logged for " + name + "! Invoice sent to " + result.email);
-      document.getElementById("btnLog").style.display    = "none";
-      document.getElementById("btnCancel").style.display = "none";
-      setTimeout(function() { resetAll(); }, 4000);
-    } else {
-      showError(result.message || "Failed to log package.");
-      document.getElementById("btnLog").disabled = false;
-    }
-  });
+  fetch("https://crew-packages-proxy.crewpackagestpa.workers.dev", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ action: "logPackage", name: name, tracking: tracking, ship: ship, count: count })
+})
+.then(function(r) { return r.json(); })
+.then(function(result) {
+  if (result.success) {
+    hideStatus();
+    showSuccess("Package logged for " + name + "! Invoice sent to " + result.email);
+    document.getElementById("btnLog").style.display    = "none";
+    document.getElementById("btnCancel").style.display = "none";
+    setTimeout(function() { resetAll(); }, 4000);
+  } else {
+    showError(result.message || "Failed to log package.");
+    document.getElementById("btnLog").disabled = false;
+  }
+})
+.catch(function(err) {
+  showError("Network error: " + err.message);
+  document.getElementById("btnLog").disabled = false;
+});
 }
 
 // ── RESET ─────────────────────────────────────────────────────
