@@ -219,7 +219,7 @@
 
 <script>
 // ── CONFIG — FILL THESE IN ───────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwL3kunWQn3Vpnm6yqvl-_UfTTTBk2CNkaVAxGoKFjxYpl7ROSwS8O4PdGihwPiCzk_Gg/exec"; // ← paste your Web App URL here
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyTFqJ3nMf2Jh2tm8ziCvo3jYwC9NlKkE4SLDgbMQUzo9Psk-9HD5JN3oSgtlrRcsD/exec"; // ← paste your Web App URL here
 
 // ── STATE ────────────────────────────────────────────────────
 var stream = null;
@@ -386,7 +386,7 @@ function showResultCard(name, tracking, ship, count) {
 
 function updatePrice() {
   var count = parseInt(document.getElementById("fieldCount").value) || 1;
-  document.getElementById("priceBadge").textContent = "Total: $" + (count * 10).toFixed(2);
+  document.getElementById("priceBadge").textContent = "Total: $" + (count * 6).toFixed(2);
 }
 
 // ── LOG PACKAGE ───────────────────────────────────────────────
