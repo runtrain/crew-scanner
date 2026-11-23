@@ -203,6 +203,8 @@
         <option value="NCL Dawn">NCL Dawn</option>
         <option value="NCL Star">NCL Star</option>
         <option value="MS Insignia">MS Insignia</option>
+        <option value="NCL Gem">NCL Gem</option>
+        <option value="SS Mariner">SS Mariner</option>
       </select>
     </div>
     <div class="result-field">
@@ -332,7 +334,7 @@ function analyzeLabel(base64Image) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: "image/jpeg", data: compressed }},
-            { type: "text", text: "Extract from this shipping label and respond ONLY with JSON:\n{\"recipient_name\": \"full name of recipient only, no ship name\", \"tracking_number\": \"tracking number\", \"ship_hint\": \"NCL Dawn, NCL Star, or MS Insignia if visible, else empty string\"}" }
+            { type: "text", text: "Extract from this shipping label and respond ONLY with JSON:\n{\"recipient_name\": \"full name of recipient only, no ship name\", \"tracking_number\": \"tracking number\", \"ship_hint\": \"NCL Dawn, NCL Star, MS Insignia, NCL Gem, or SS Mariner if visible, else empty string\"}" }
           ]
         }]
       })
@@ -359,14 +361,17 @@ function analyzeLabel(base64Image) {
   img.src = "data:image/jpeg;base64," + base64Image;
 }// ── POPULATE FIELDS ──────────────────────────────────────────
 function populateFields(parsed) {
-  var name     = (parsed.recipient_name || "").replace(/NCL Dawn|NCL Star|MS Insignia/gi, "").trim();
+  var name     = (parsed.recipient_name || "").replace(/NCL Dawn|NCL Star|MS Insignia|NCL Gem|SS Mariner/gi, "").trim();
   var tracking = parsed.tracking_number || "";
   var ship     = "";
 
   if (parsed.ship_hint) {
-    if (parsed.ship_hint.indexOf("Dawn")     > -1) ship = "NCL Dawn";
-    if (parsed.ship_hint.indexOf("Star")     > -1) ship = "NCL Star";
-    if (parsed.ship_hint.indexOf("Insignia") > -1) ship = "MS Insignia";
+    var shipHint = String(parsed.ship_hint).toLowerCase();
+    if (shipHint.indexOf("dawn")     > -1) ship = "NCL Dawn";
+    if (shipHint.indexOf("star")     > -1) ship = "NCL Star";
+    if (shipHint.indexOf("insignia") > -1) ship = "MS Insignia";
+    if (shipHint.indexOf("gem")      > -1) ship = "NCL Gem";
+    if (shipHint.indexOf("mariner")  > -1) ship = "SS Mariner";
   }
 
   showResultCard(name, tracking, ship, 1);
